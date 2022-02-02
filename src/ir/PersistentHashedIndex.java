@@ -26,7 +26,7 @@ import java.nio.charset.*;
 public class PersistentHashedIndex implements Index {
 
     /** The directory where the persistent index files are stored. */
-    public static final String INDEXDIR = "./index";
+    public static final String INDEXDIR = "/Users/zhangziheng/OneDrive/KTH/SEandIRGradeA/src/index";
 
     /** The dictionary file name */
     public static final String DICTIONARY_FNAME = "dictionary";
@@ -43,6 +43,8 @@ public class PersistentHashedIndex implements Index {
     /** The dictionary hash table on disk can fit this many entries. */
     public static final long TABLESIZE = 611953L;
 //    public static final long TABLESIZE = 3500000;
+
+    public static final int ENTRYSIZE = 20;
 
     /** The dictionary hash table is stored in this file. */
     RandomAccessFile dictionaryFile;
@@ -66,6 +68,17 @@ public class PersistentHashedIndex implements Index {
         //
         //  YOUR CODE HERE
         //
+        public int size;
+        public long ptr;
+        public long hashSec;
+        //public String token;
+
+        public Entry(long ptr, int size, long hashSec) {
+            this.size = size;
+            this.ptr = ptr;
+            this.hashSec = hashSec;
+            // this.token = token;
+        }
     }
 
 
@@ -79,6 +92,8 @@ public class PersistentHashedIndex implements Index {
     public PersistentHashedIndex() {
         try {
             dictionaryFile = new RandomAccessFile( INDEXDIR + "/" + DICTIONARY_FNAME, "rw" );
+            dictionaryFile.seek(TABLESIZE*ENTRYSIZE+1000);
+            dictionaryFile.writeInt(1);
             dataFile = new RandomAccessFile( INDEXDIR + "/" + DATA_FNAME, "rw" );
         } catch ( IOException e ) {
             e.printStackTrace();
@@ -140,6 +155,16 @@ public class PersistentHashedIndex implements Index {
         //
         //  YOUR CODE HERE
         //
+        try {
+            dictionaryFile.seek(ptr);
+            //dictionaryFile.writeBytes(entry.token);
+            dictionaryFile.writeLong(entry.hashSec);
+            dictionaryFile.writeLong(entry.ptr);
+            dictionaryFile.writeInt(entry.size);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     /**
@@ -151,7 +176,20 @@ public class PersistentHashedIndex implements Index {
         //
         //  REPLACE THE STATEMENT BELOW WITH YOUR CODE 
         //
-        return null;
+        try {
+            dictionaryFile.seek(ptr);
+
+            long hashSec = dictionaryFile.readLong();
+            dictionaryFile.seek(ptr+8);
+            long pointer = dictionaryFile.readLong();
+            dictionaryFile.seek(ptr+16);
+            int size = dictionaryFile.readInt();
+            return new Entry(pointer, size, hashSec);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
 
@@ -208,14 +246,87 @@ public class PersistentHashedIndex implements Index {
             // 
             //  YOUR CODE HERE
             //
+            long max_val =0;
+            for (Map.Entry<String, PostingsList> entry : index.entrySet()) {
+
+                long hash = stringHash(entry.getKey());
+                long hashSec = stringHash2(entry.getKey());
+                long h2=0;
+                int sq = 1;
+
+                if (hash >= TABLESIZE|hash <0) {
+                    hash = 0L;
+                }
+                while (!iCollision(hash,h2)) {
+                    if (hash >= TABLESIZE|hash<0) {
+                        hash = 0L;
+                    }
+                    hash = hash+ (sq^2);
+                    sq++;
+                    collisions++;
+                }
+                if(sq > max_val){
+                    max_val = sq;
+                }
+
+
+                int pl_size = writeData(entry.getValue().toStr(), free);
+                Entry entry_ = new Entry(free, pl_size,hashSec);
+                writeEntry(entry_, hash*ENTRYSIZE);
+                free = free + pl_size ;
+
+                //test
+                // if(entry.getKey().equals("they")){
+                //     System.err.println(entry.getKey());
+                //     System.err.println(entry.getValue().toStr());
+                // }
+            }
         } catch ( IOException e ) {
             e.printStackTrace();
         }
         System.err.println( collisions + " collisions." );
     }
 
-
     // ==================================================================
+
+
+    //Hash Function 1
+    public static long stringHash(String term) {
+        long hash = 7;
+        for (int i = 0; i < term.length(); i++) {
+            hash = (33 * hash + term.charAt(i)) % TABLESIZE ;
+        }
+        return hash;
+
+    }
+
+    //Hash Function 2
+    public static long stringHash2(String term){
+        int hash, i;
+        for (hash=term.length(), i=0; i<term.length(); ++i)
+            hash = (hash<<4)^(hash>>28)^term.charAt(i);
+        return (hash % TABLESIZE);
+
+    }
+
+    // if has hash collisions
+    boolean iCollision(long hash1,long hash2){
+        boolean result = false;
+        try {
+            if (hash1 >= TABLESIZE| hash1<0) {
+                result = false;
+            }
+            else{
+                dictionaryFile.seek(hash1*ENTRYSIZE);
+                if(dictionaryFile.readLong() == hash2){
+                    result = true;
+                }
+            }
+        }catch (IOException e) {
+            e.printStackTrace();
+        }
+        return result;
+    }
 
 
     /**
@@ -226,7 +337,45 @@ public class PersistentHashedIndex implements Index {
         //
         //  REPLACE THE STATEMENT BELOW WITH YOUR CODE
         //
-        return null;
+        long hash1 = stringHash(token);
+        long hash2 = stringHash2(token);
+        int sq = 1;
+
+        if (hash1 >= TABLESIZE | hash1<0) {
+            hash1 = 0L;
+        }
+        while (!iCollision(hash1, hash2) && sq<100) {
+            if (hash1 >= TABLESIZE|hash1<0) {
+                hash1 = 0l;
+            }
+            hash1 = hash1+(sq^2);
+            sq++;
+        }
+
+
+        Entry entry = readEntry(hash1*ENTRYSIZE);
+        //System.out.println(entry.ptr+","+entry.size);
+        String a = readData(entry.ptr, entry.size);
+        //System.out.println(a);
+        return toPostingsList(a);
+    }
+
+    public PostingsList toPostingsList(String a){
+        PostingsList result = new PostingsList();
+
+        String[] postingsList = a.split("\n");
+
+        for (String item : postingsList) {
+            String[] docID = item.split(" ");
+//            System.out.println(docID[0]); // docID;
+            String[] offset = docID[1].split(",");
+            for (String i : offset) {
+//                System.out.println(i);
+                result.insert(Integer.parseInt(docID[0]), 0.0, Integer.parseInt(i));
+            }
+
+        }
+        return result;
     }
 
 
@@ -237,6 +386,10 @@ public class PersistentHashedIndex implements Index {
         //
         //  YOUR CODE HERE
         //
+        if (!index.containsKey(token)) index.put(token, new PostingsList());
+
+        PostingsList postingList = index.get(token);
+        postingList.insert(docID, 0.0, offset);
     }
 
 

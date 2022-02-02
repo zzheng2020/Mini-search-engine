@@ -52,6 +52,22 @@ public class PostingsList {
 //        list.add(postingsEntry);
     }
 
+    public String toStr() {
+        StringBuilder a = new StringBuilder("");
+        for (PostingsEntry postingsEntry : list) {
+            // +" "+Double.toString(list.get(i).score)
+            a.append(Integer.toString(postingsEntry.docID));
+            a.append(" ");
+            for (int item : postingsEntry.position) {
+                a.append(Integer.toString(item));
+                a.append(",");
+            }
+//                a.append(Integer.toString(postingsEntry.offset));
+            a.append("\n");
+        }
+        return a.toString();
+    }
+
 //     If a word, for example 'zombie', appears several times in a
 //     document, then it will be counted for more than one time,
 //     therefore, we need to remove these duplications.
