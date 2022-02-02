@@ -9,7 +9,6 @@ package ir;
 
 import java.io.*;
 import java.util.*;
-import java.nio.charset.*;
 
 
 /*
@@ -246,34 +245,25 @@ public class PersistentHashedIndex implements Index {
             // 
             //  YOUR CODE HERE
             //
-            long max_val =0;
             for (Map.Entry<String, PostingsList> entry : index.entrySet()) {
 
-                long hash = stringHash(entry.getKey());
-                long hashSec = stringHash2(entry.getKey());
-                long h2=0;
+                String token      = entry.getKey();
+                long hash         = toHash(token);
+                long SecondHash   = toHashVersionTwo(token);
+                long comparedHash = 0;
                 int sq = 1;
 
-                if (hash >= TABLESIZE|hash <0) {
-                    hash = 0L;
-                }
-                while (!iCollision(hash,h2)) {
-                    if (hash >= TABLESIZE|hash<0) {
-                        hash = 0L;
-                    }
-                    hash = hash+ (sq^2);
-                    sq++;
+                if (hash >= TABLESIZE || hash <0) hash = 0L;
+                while (isCollision(hash, comparedHash)) {
+                    if (hash < 0) hash = 0L;
+                    hash = (hash + ENTRYSIZE * 2) % TABLESIZE;
                     collisions++;
                 }
-                if(sq > max_val){
-                    max_val = sq;
-                }
 
-
-                int pl_size = writeData(entry.getValue().toStr(), free);
-                Entry entry_ = new Entry(free, pl_size,hashSec);
-                writeEntry(entry_, hash*ENTRYSIZE);
-                free = free + pl_size ;
+                int postingsListSize = writeData(entry.getValue().toStr(), free);
+                Entry newEntry = new Entry(free, postingsListSize, SecondHash);
+                writeEntry(newEntry, hash * ENTRYSIZE);
+                free = free + postingsListSize ;
 
                 //test
                 // if(entry.getKey().equals("they")){
@@ -289,19 +279,16 @@ public class PersistentHashedIndex implements Index {
 
     // ==================================================================
 
-
-    //Hash Function 1
-    public static long stringHash(String term) {
+    public static long toHash(String term) {
         long hash = 7;
         for (int i = 0; i < term.length(); i++) {
-            hash = (33 * hash + term.charAt(i)) % TABLESIZE ;
+            hash = (33 * hash + term.charAt(i)) % TABLESIZE;
         }
         return hash;
 
     }
 
-    //Hash Function 2
-    public static long stringHash2(String term){
+    public static long toHashVersionTwo(String term){
         int hash, i;
         for (hash=term.length(), i=0; i<term.length(); ++i)
             hash = (hash<<4)^(hash>>28)^term.charAt(i);
@@ -310,16 +297,16 @@ public class PersistentHashedIndex implements Index {
     }
 
     // if has hash collisions
-    boolean iCollision(long hash1,long hash2){
-        boolean result = false;
+    public boolean isCollision(long hash, long comparedValue){
+        boolean result = true;
         try {
-            if (hash1 >= TABLESIZE| hash1<0) {
-                result = false;
+            if (hash >= TABLESIZE || hash<0) {
+                result = true;
             }
             else{
-                dictionaryFile.seek(hash1*ENTRYSIZE);
-                if(dictionaryFile.readLong() == hash2){
-                    result = true;
+                dictionaryFile.seek(hash * ENTRYSIZE);
+                if(dictionaryFile.readLong() == comparedValue){
+                    result = false;
                 }
             }
         }catch (IOException e) {
@@ -337,27 +324,49 @@ public class PersistentHashedIndex implements Index {
         //
         //  REPLACE THE STATEMENT BELOW WITH YOUR CODE
         //
-        long hash1 = stringHash(token);
-        long hash2 = stringHash2(token);
-        int sq = 1;
+        long hash  = toHash(token);
+        long hash2 = toHashVersionTwo(token);
 
-        if (hash1 >= TABLESIZE | hash1<0) {
-            hash1 = 0L;
+        if (hash >= TABLESIZE || hash < 0) {
+            hash = 0L;
         }
-        while (!iCollision(hash1, hash2) && sq<100) {
-            if (hash1 >= TABLESIZE|hash1<0) {
-                hash1 = 0l;
+//        while (isCollision(hash, hash2)) {
+//            if (hash >= TABLESIZE || hash<0) {
+//                hash = 0L;
+//            }
+//            hash = (hash + ENTRYSIZE * 2) % TABLESIZE;
+//        }
+        int cnt = 0;
+        while (!getEntry(token, hash, hash2) && cnt <= 100) {
+            if (hash < 0) {
+                hash = 0L;
             }
-            hash1 = hash1+(sq^2);
-            sq++;
+            hash = (hash + ENTRYSIZE * 2) % TABLESIZE;
+            cnt++;
         }
+        if (cnt < 100) {
+            cnt = 0;
+            Entry entry = readEntry(hash * ENTRYSIZE);
+            //System.out.println(entry.ptr+","+entry.size);
+            String a = readData(entry.ptr, entry.size);
+            //System.out.println(a);
+            return toPostingsList(a);
+        }
+        else {
+            cnt = 0;
+            return null;
+        }
+    }
 
-
-        Entry entry = readEntry(hash1*ENTRYSIZE);
-        //System.out.println(entry.ptr+","+entry.size);
-        String a = readData(entry.ptr, entry.size);
-        //System.out.println(a);
-        return toPostingsList(a);
+    public boolean getEntry(String token, long hash1, long hash2) {
+        try {
+            dictionaryFile.seek(hash1 * ENTRYSIZE);
+            long hashSec = dictionaryFile.readLong();
+            return hash2 == hashSec;
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     public PostingsList toPostingsList(String a){
