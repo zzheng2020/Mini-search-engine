@@ -236,6 +236,7 @@ public class PersistentHashedIndex implements Index {
      */
     public void writeIndex() {
         int collisions = 0;
+        int cnt = 0;
         try {
             // Write the 'docNames' and 'docLengths' hash maps to a file
             writeDocInfo();
@@ -260,6 +261,7 @@ public class PersistentHashedIndex implements Index {
                     collisions++;
                 }
 
+                cnt++;
                 int postingsListSize = writeData(entry.getValue().toStr(), free);
                 Entry newEntry = new Entry(free, postingsListSize, SecondHash);
                 writeEntry(newEntry, hash * ENTRYSIZE);
@@ -270,6 +272,7 @@ public class PersistentHashedIndex implements Index {
                 //     System.err.println(entry.getKey());
                 //     System.err.println(entry.getValue().toStr());
                 // }
+                if (cnt % 1000 == 0) System.out.println(cnt + " index have been written.");
             }
         } catch ( IOException e ) {
             e.printStackTrace();
@@ -309,7 +312,11 @@ public class PersistentHashedIndex implements Index {
                     result = false;
                 }
             }
-        }catch (IOException e) {
+        }
+        catch (EOFException e) {
+            return false;
+        }
+        catch (IOException e) {
             e.printStackTrace();
         }
         return result;
