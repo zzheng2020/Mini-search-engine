@@ -45,6 +45,7 @@ public class Searcher {
 //        }
 
         // query for multi words
+        int cnt = 0;
         if (queryType == QueryType.INTERSECTION_QUERY) {
             PostingsList intersectionResult = new PostingsList();
             for (int i = 0; i < query.size(); i++) {
@@ -60,10 +61,17 @@ public class Searcher {
         else if (queryType == QueryType.PHRASE_QUERY) {
             System.out.println("phrase query");
             PostingsList phraseResult = new PostingsList();
+            PostingsList tmpResult = new PostingsList();
+            System.out.println("query size: " + query.size());
             for (int i = 0; i < query.size(); i++) {
+                cnt++;
                 String token = query.queryterm.get(i).term;
+                System.out.println("token in phrase query: " + token);
                 PostingsList tokenQueryPostingsList = index.getPostings(token);
                 phraseResult = positionalIntersect(tokenQueryPostingsList, phraseResult);
+//                if (query.size() > 1 && phraseResult.size() == 0) phraseResult = tmpResult;
+
+                if (cnt >= 2 && phraseResult.size() == 0) return result;
             }
             result = phraseResult;
         }
@@ -104,11 +112,14 @@ public class Searcher {
 
     public PostingsList positionalIntersect(PostingsList tokenPostingsList, PostingsList intermediatePostingsList) {
         if (tokenPostingsList == null || intermediatePostingsList == null) return null;
+        System.out.println("size " + tokenPostingsList.size() + " " + intermediatePostingsList.size());
+
 
         PostingsList       mergeResult  = new PostingsList();
         ArrayList<Integer> tmpArray     = new ArrayList<Integer>();
 
         if (intermediatePostingsList.size() == 0) return tokenPostingsList;
+//        if (intermediatePostingsList.size() == 0) return null;
 
         int pointerToken = 0, pointerIntermediate = 0;
 

@@ -293,8 +293,8 @@ public class PersistentHashedIndex implements Index {
 
     public static long toHashVersionTwo(String term){
         int hash, i;
-        for (hash=term.length(), i=0; i<term.length(); ++i)
-            hash = (hash<<4)^(hash>>28)^term.charAt(i);
+        for (hash = term.length(), i=0; i < term.length(); i++)
+            hash = (hash << 4) ^ (hash >> 28) ^ term.charAt(i);
         return (hash % TABLESIZE);
 
     }
