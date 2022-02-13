@@ -71,6 +71,13 @@ public class Searcher {
                 phraseResult = positionalIntersect(tokenQueryPostingsList, phraseResult);
 //                if (query.size() > 1 && phraseResult.size() == 0) phraseResult = tmpResult;
 
+                // fixed the bug.
+                // If we already find the phraseResult == 0, and still have words that need to be searched,
+                // we will get the wrong answer.
+                // This "if" block is to tackle this problem.
+                // When we have more than or equal two words, and find the size of phraseResult is 0,
+                // then the result will be definitely 0,
+                // therefore, we return the result early.
                 if (cnt >= 2 && phraseResult.size() == 0) return result;
             }
             result = phraseResult;
