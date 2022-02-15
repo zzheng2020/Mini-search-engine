@@ -8,6 +8,7 @@
 package ir;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 /**
  *  Searches an index for results of a query.
@@ -82,11 +83,112 @@ public class Searcher {
             }
             result = phraseResult;
         }
+        // query for ranked query
+        else if (queryType == QueryType.RANKED_QUERY) {
+            System.out.println("Ranked_Query");
+
+            if (query.size() == 0) {
+                return result;
+            }
+
+            // 储存需要查询的词的PostingsList
+            ArrayList<PostingsList> queryWordPostingsList = new ArrayList<>();
+            // 计算查询的单词在每篇文章中的tf_idf值
+            for (int i = 0; i < query.size(); i++) {
+                String queryWord = query.queryterm.get(i).term;
+                PostingsList post = index.getPostings(queryWord);
+                calculateTF_IDF(post);
+                queryWordPostingsList.add(post);
+            }
+
+            // 查询只有一个词的时候
+            if (query.size() == 1) {
+                // 如果只查一个词并且它不存在，那么返回空
+                if (queryWordPostingsList.get(0) == null) return result;
+                Collections.sort(queryWordPostingsList.get(0).getList());
+                return queryWordPostingsList.get(0);
+            }
+
+            PostingsList mergeResult = new PostingsList();
+            mergeResult = mergeRankedPostingsList(queryWordPostingsList.get(0), queryWordPostingsList.get(1));
+
+            for (int i = 2; i < query.size(); i++) {
+                mergeResult = mergeRankedPostingsList(mergeResult, queryWordPostingsList.get(i));
+            }
+            Collections.sort(mergeResult.getList());
+            result = mergeResult;
+            if (result.size() == 0) return null;
+            return result;
+        }
 
 
         return result;
     }
 
+    public PostingsList mergeRankedPostingsList(PostingsList postingsList1, PostingsList postingsList2) {
+        PostingsList answer = new PostingsList();
+
+        if (postingsList1 == null) postingsList1 = new PostingsList();
+        if (postingsList2 == null) postingsList2 = new PostingsList();
+
+        int i = 0, j = 0;
+
+        while (i < postingsList1.size() && j < postingsList2.size()) {
+            PostingsEntry postingsEntry1 = postingsList1.get(i);
+            PostingsEntry postingsEntry2 = postingsList2.get(j);
+
+            if (postingsEntry1.docID == postingsEntry2.docID) {
+                double score = 0;
+
+                score = postingsEntry1.score + postingsEntry2.score;
+                answer.insert(postingsEntry1.docID, score, postingsEntry1.offset);
+
+                i++;
+                j++;
+            }
+            else if (postingsEntry1.docID < postingsEntry2.docID) {
+                answer.insert(postingsEntry1.docID, postingsEntry1.score, postingsEntry1.offset);
+
+                i++;
+            }
+            else {
+                answer.insert(postingsEntry2.docID, postingsEntry2.score, postingsEntry2.offset);
+
+                j++;
+            }
+        }
+
+        while (i < postingsList1.size()) {
+            answer.insert(postingsList1.get(i).docID, postingsList1.get(i).score, postingsList1.get(i).offset);
+
+            i++;
+        }
+        while (j < postingsList2.size()) {
+            answer.insert(postingsList2.get(j).docID, postingsList2.get(j).score, postingsList2.get(j).offset);
+
+            j++;
+        }
+
+        return answer;
+    }
+
+    public void calculateTF_IDF(PostingsList postingsList) {
+        if (postingsList == null) return;
+        int N  = this.index.docNames.size();
+        int df = postingsList.size();
+//        System.out.println("N == " + N + ", df == " + df + " == " + this.index.docLengths.size());
+
+        for (PostingsEntry entry : postingsList.getList()) {
+            int    tf        = entry.position.size();
+            double idf       = Math.log((double)N / (double)df);
+            double docLength = index.docLengths.get(entry.docID);
+
+            entry.score = (double)tf * idf / docLength;
+        }
+    }
+
+
+    // intersection query
     public PostingsList mergeTwoPostingsList(PostingsList tokenPostingsList, PostingsList intermediatePostingsList) {
         if (tokenPostingsList == null || intermediatePostingsList == null) return null;
 
@@ -117,6 +219,7 @@ public class Searcher {
         return mergeResult;
     }
 
+    // phrase query
     public PostingsList positionalIntersect(PostingsList tokenPostingsList, PostingsList intermediatePostingsList) {
         if (tokenPostingsList == null || intermediatePostingsList == null) return null;
         System.out.println("size " + tokenPostingsList.size() + " " + intermediatePostingsList.size());

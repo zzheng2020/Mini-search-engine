@@ -8,13 +8,14 @@ import java.util.List;
 
 public class test {
     public static void main(String[] args) {
-        StringBuilder str = new StringBuilder("");
-        str.append("123 1,2,3,\n");
-        str.append("456 4,5,6,\n");
-        str.append("789 7,8,9,\n");
-
-
-        String a = str.toString();
+//        StringBuilder str = new StringBuilder("");
+//        str.append("123 1,2,3,\n");
+//        str.append("456 4,5,6,\n");
+//        str.append("789 7,8,9,\n");
+//
+//
+//        String a = str.toString();
+//        System.out.println(Math.log(4/3));
 
 //        String[] postingsList = a.split("\n");
 //

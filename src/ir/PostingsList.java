@@ -14,6 +14,7 @@ public class PostingsList {
     
     /** The postings list */
     private ArrayList<PostingsEntry> list = new ArrayList<PostingsEntry>();
+    public double weight = 1;
 
     // {docID, Index in the PostingsList}
     public HashMap<Integer, Integer> hasDocID = new HashMap<Integer, Integer>();
@@ -33,6 +34,9 @@ public class PostingsList {
     // 
     //  YOUR CODE HERE
     //
+    public ArrayList<PostingsEntry> getList() {
+        return list;
+    }
 
     public void insert(int docID, double score, int offset) {
         if (!hasDocID.containsKey(docID)) {

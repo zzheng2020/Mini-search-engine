@@ -25,7 +25,7 @@ import java.util.*;
 public class PersistentHashedIndex implements Index {
 
     /** The directory where the persistent index files are stored. */
-    public static final String INDEXDIR = "/Users/zhangziheng/OneDrive/KTH/SEandIRGradeA/src/index";
+    public static final String INDEXDIR = "/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/index";
 
     /** The dictionary file name */
     public static final String DICTIONARY_FNAME = "dictionary";
