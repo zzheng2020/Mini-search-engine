@@ -71,7 +71,7 @@ public class SearchGUI extends JFrame {
     JRadioButtonMenuItem phraseItem = new JRadioButtonMenuItem( "Phrase query" );
     JRadioButtonMenuItem rankedItem = new JRadioButtonMenuItem( "Ranked retrieval" );
     JRadioButtonMenuItem tfidfItem = new JRadioButtonMenuItem( "tf-idf" );
-    JRadioButtonMenuItem pagerankItem = new JRadioButtonMenuItem( "PageRank" );
+    JRadioButtonMenuItem pagerankItem = new JRadioButtonMenuItem( "ir.PageRank" );
     JRadioButtonMenuItem combinationItem = new JRadioButtonMenuItem( "Combination" );
     JRadioButtonMenuItem numberOfWordsItem = new JRadioButtonMenuItem( "Number of words" );
     JRadioButtonMenuItem euclideanLengthItem = new JRadioButtonMenuItem( "Euclidean length" );
