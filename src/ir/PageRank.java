@@ -1,5 +1,6 @@
 package ir;
 
+import java.lang.reflect.Array;
 import java.util.*;
 import java.io.*;
 
@@ -33,6 +34,10 @@ public class PageRank {
      *   key i is null.
      */
     HashMap<Integer,HashMap<Integer,Boolean>> link = new HashMap<Integer,HashMap<Integer,Boolean>>();
+
+	HashMap<Integer,HashMap<Integer,Boolean>> outlinks = new HashMap<Integer,HashMap<Integer,Boolean>>();
+
+	ArrayList<Integer> nullLinks = new ArrayList<Integer>();
 
     /**
      *   The number of outlinks from each node.
@@ -70,59 +75,59 @@ public class PageRank {
      *   @return the number of documents read.
      */
     int readDocs( String filename ) {
-	int fileIndex = 0;
-	try {
-	    System.err.print( "Reading file... " );
-	    BufferedReader in = new BufferedReader( new FileReader( filename ));
-	    String line;
-	    while ((line = in.readLine()) != null && fileIndex<MAX_NUMBER_OF_DOCS ) {
-			int index = line.indexOf( ";" );
-			String title = line.substring( 0, index );
-			Integer fromdoc = docNumber.get( title );
-			//  Have we seen this document before?
-			if ( fromdoc == null ) {
-				// This is a previously unseen doc, so add it to the table.
-				fromdoc = fileIndex++;
-				docNumber.put( title, fromdoc );
-				docName[fromdoc] = title;
+		int fileIndex = 0;
+		try {
+			System.err.print( "Reading file... " );
+			BufferedReader in = new BufferedReader( new FileReader( filename ));
+			String line;
+			while ((line = in.readLine()) != null && fileIndex<MAX_NUMBER_OF_DOCS ) {
+				int index = line.indexOf( ";" );
+				String title = line.substring( 0, index );
+				Integer fromdoc = docNumber.get( title );
+				//  Have we seen this document before?
+				if ( fromdoc == null ) {
+					// This is a previously unseen doc, so add it to the table.
+					fromdoc = fileIndex++;
+					docNumber.put( title, fromdoc );
+					docName[fromdoc] = title;
+				}
+				// Check all outlinks.
+				StringTokenizer tok = new StringTokenizer( line.substring(index+1), "," );
+				while ( tok.hasMoreTokens() && fileIndex<MAX_NUMBER_OF_DOCS ) {
+					String otherTitle = tok.nextToken();
+					Integer otherDoc = docNumber.get( otherTitle );
+					if ( otherDoc == null ) {
+						// This is a previousy unseen doc, so add it to the table.
+						otherDoc = fileIndex++;
+						docNumber.put( otherTitle, otherDoc );
+						docName[otherDoc] = otherTitle;
+					}
+					// Set the probability to 0 for now, to indicate that there is
+					// a link from fromdoc to otherDoc.
+					if ( link.get(fromdoc) == null ) {
+						link.put(fromdoc, new HashMap<Integer,Boolean>());
+					}
+					if ( link.get(fromdoc).get(otherDoc) == null ) {
+						link.get(fromdoc).put( otherDoc, true );
+						out[fromdoc]++;
+					}
+				}
 			}
-			// Check all outlinks.
-			StringTokenizer tok = new StringTokenizer( line.substring(index+1), "," );
-			while ( tok.hasMoreTokens() && fileIndex<MAX_NUMBER_OF_DOCS ) {
-				String otherTitle = tok.nextToken();
-				Integer otherDoc = docNumber.get( otherTitle );
-				if ( otherDoc == null ) {
-					// This is a previousy unseen doc, so add it to the table.
-					otherDoc = fileIndex++;
-					docNumber.put( otherTitle, otherDoc );
-					docName[otherDoc] = otherTitle;
-				}
-				// Set the probability to 0 for now, to indicate that there is
-				// a link from fromdoc to otherDoc.
-				if ( link.get(fromdoc) == null ) {
-					link.put(fromdoc, new HashMap<Integer,Boolean>());
-				}
-				if ( link.get(fromdoc).get(otherDoc) == null ) {
-					link.get(fromdoc).put( otherDoc, true );
-					out[fromdoc]++;
-				}
+			if ( fileIndex >= MAX_NUMBER_OF_DOCS ) {
+				System.err.print( "stopped reading since documents table is full. " );
 			}
-	    }
-	    if ( fileIndex >= MAX_NUMBER_OF_DOCS ) {
-			System.err.print( "stopped reading since documents table is full. " );
-	    }
-	    else {
-			System.err.print( "done. " );
-	    }
-	}
-	catch ( FileNotFoundException e ) {
-	    System.err.println( "File " + filename + " not found!" );
-	}
-	catch ( IOException e ) {
-	    System.err.println( "Error reading file " + filename );
-	}
-	System.err.println( "Read " + fileIndex + " number of documents" );
-	return fileIndex;
+			else {
+				System.err.print( "done. " );
+			}
+		}
+		catch ( FileNotFoundException e ) {
+			System.err.println( "File " + filename + " not found!" );
+		}
+		catch ( IOException e ) {
+			System.err.println( "Error reading file " + filename );
+		}
+		System.err.println( "Read " + fileIndex + " number of documents" );
+		return fileIndex;
     }
 
 
@@ -135,9 +140,99 @@ public class PageRank {
      */
     void iterate( int numberOfDocs, int maxIterations ) {
 
-	// YOUR CODE HERE
+		// YOUR CODE HERE
+		double[] x = new double[numberOfDocs];
+		double[] x_ = new double[numberOfDocs];
+		System.out.println("linkSize == " + link.size());
 
-    }
+		// outLink{i, k}: exist an edge pointing from k to i
+		for (int i = 0; i < numberOfDocs; i++) {
+
+			if (link.get(i) != null) {
+
+				for (int key : link.get(i).keySet()) {
+
+					if (outlinks.get(key) != null) {
+
+						outlinks.get(key).put(i, true);
+					} else {
+						HashMap<Integer, Boolean> ipointk = new HashMap<Integer, Boolean>();
+						ipointk.put(i, true);
+						outlinks.put(key, ipointk);
+					}
+				}
+			}
+			else {
+				nullLinks.add(i);
+			}
+		}
+		System.out.println("outLink == " + outlinks.size());
+		System.out.println("nullLink == " + nullLinks.size());
+
+		System.out.println("finish outLinks");
+
+
+
+
+		x[0] = 1.0;
+		int iteration = 0;
+
+		do {
+			if (iteration != 0) {
+				x = x_.clone();
+			}
+			double nullValue = 0.0;
+			for (Integer nullLink : nullLinks) {
+				nullValue += (double) x[nullLink] * (1 - BORED) / (double) numberOfDocs;
+			}
+
+			for (int i = 0; i < numberOfDocs; i++) {
+				x_[i] = BORED / (double)numberOfDocs;
+				if (outlinks.get(i) != null) {
+					for (int outLink : outlinks.get(i).keySet()) {
+						x_[i] += x[outLink] * (1 - BORED) / link.get(outLink).size();
+					}
+				}
+				x_[i] += nullValue;
+			}
+			double sum = 0.0;
+			for (double v : x_) {
+				sum += v;
+			}
+			for (int i = 0; i<x_.length; i++) {
+				x_[i] = x_[i] / sum;
+			}
+			iteration++;
+			System.out.println(diff(x, x_));
+		} while (iteration < maxIterations && diff(x, x_) > EPSILON);
+
+		System.out.println("=======");
+//		double max = -1;
+//		int item = 0;
+//		for (int i = 0; i < numberOfDocs; i++) {
+//			if (x_[i] > max) {
+//				max = x_[i];
+//				item = i;
+//			}
+//		}
+//		System.out.println("max  == " + max);
+//		System.out.println("item == " + item);
+//		System.out.println("doc  == " + docName[item]);
+
+		System.out.println("sort:");
+		Arrays.sort(x_);
+
+		for (int i = numberOfDocs - 1; i >= numberOfDocs - 30; i--) System.out.println(x_[i]);
+
+	}
+
+	double diff(double[] x1, double[] x2) {
+		double difference = 0.0;
+		for (int i = 0; i < x1.length; i++) {
+			difference += Math.abs(x1[i] - x2[i]);
+		}
+		return difference;
+	}
 
 
     /* --------------------------------------------- */

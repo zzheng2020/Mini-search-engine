@@ -125,6 +125,8 @@ public class Searcher {
         return result;
     }
 
+
+
     public PostingsList mergeRankedPostingsList(PostingsList postingsList1, PostingsList postingsList2) {
         PostingsList answer = new PostingsList();
 
