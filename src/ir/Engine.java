@@ -7,8 +7,13 @@
 
 package ir;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.io.File;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  *  This is the main class for the search engine.
@@ -53,6 +58,12 @@ public class Engine {
     boolean is_indexing = true;
 
 
+//    /*
+//     * {
+//     *     key: docID, value: { key: word, value: times }
+//     * }
+//     */
+//    HashMap<Integer, HashMap<String, Integer> > docWordVector = new HashMap<>();
     /* ----------------------------------------------- */
 
 
@@ -83,6 +94,19 @@ public class Engine {
                 long elapsedTime = System.currentTimeMillis() - startTime;
                 gui.displayInfoText( String.format( "Indexing done in %.1f seconds.", elapsedTime/1000.0 ));
                 index.cleanup();
+
+
+                calculateDocVector("euclidean.txt");
+
+                int cnt = 0;
+                for (Map.Entry<Integer, Double> entry : index.euclideanDocLengths.entrySet()) {
+                    cnt++;
+                    int docID = entry.getKey();
+                    if (cnt <= 30) {
+                        System.out.println("docName == " + index.docNames.get(docID) + ", Euclidean Length == " + entry.getValue());
+                    }
+                }
+
             }
         } else {
             gui.displayInfoText( "Index is loaded from disk" );
@@ -131,6 +155,36 @@ public class Engine {
 
     /* ----------------------------------------------- */
 
+    public void calculateDocVector(String fileName) {
+        indexer.initLastDocID();
+
+        synchronized (indexLock) {
+            for (String dirName : dirNames) {
+                File dokDir = new File(dirName);
+                indexer.processFileAgain(dokDir);
+            }
+        }
+
+        writeEuclideanToFile(fileName);
+
+    }
+
+    public void writeEuclideanToFile(String fileName) {
+        try {
+            BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(fileName));
+
+            for (Map.Entry<Integer, Double> entry : index.euclideanDocLengths.entrySet()) {
+                String str = entry.getKey() + ":" + entry.getValue();
+                bufferedWriter.write(str);
+                bufferedWriter.newLine();
+            }
+
+            bufferedWriter.close();
+            System.out.println("finished write Euclidean Lengths to file");
+        } catch ( IOException e ) {
+            e.printStackTrace();
+        }
+    }
 
     public static void main( String[] args ) {
         Engine e = new Engine( args );

@@ -29,6 +29,10 @@ public class Indexer {
     /** The patterns matching non-standard words (e-mail addresses, etc.) */
     String patterns_file;
 
+    public void initLastDocID() {
+        this.lastDocID = 0;
+    }
+
 
     /* ----------------------------------------------- */
 
@@ -83,6 +87,57 @@ public class Indexer {
                         System.err.println( "Warning: IOException during indexing." );
                     }
                 }
+            }
+        }
+    }
+
+    public void processFileAgain( File f ) {
+        if ( f.isDirectory() ) {
+            String[] fs = f.list();
+            // an IO error could occur
+            if ( fs != null ) {
+                for ( int i = 0; i < fs.length; i++ ) {
+                    processFileAgain( new File( f, fs[i] ) );
+                }
+            }
+        }
+        else {
+            int docID = generateDocID();
+            if( docID % 1000 == 0) System.out.println("Indexed " + docID + " files again");
+
+            try {
+                Reader reader = new InputStreamReader( new FileInputStream(f), StandardCharsets.UTF_8 );
+                Tokenizer tok = new Tokenizer( reader, true, false, true, patterns_file );
+                int offset = 0;
+
+                HashMap<String, Integer> wordVector = new HashMap<>();
+
+
+                while ( tok.hasMoreTokens() ) {
+                    String token = tok.nextToken();
+//                    insertIntoIndex( docID, token, offset++ );
+                    if (wordVector.get(token) == null) {
+                        wordVector.put(token, 1);
+                    }
+                    else {
+                        int appearTimes = wordVector.get(token);
+                        wordVector.put(token, appearTimes + 1);
+                    }
+                }
+
+                double euclideanLengths = 0.0;
+                double squareSum = 0.0;
+                for (Map.Entry<String, Integer> entry : wordVector.entrySet()) {
+                    double appear = (double) entry.getValue();
+                    squareSum += appear * appear;
+                }
+
+                euclideanLengths = Math.sqrt(squareSum);
+                index.euclideanDocLengths.put(docID, euclideanLengths);
+
+                reader.close();
+            } catch ( IOException e ) {
+                System.err.println( "Warning: IOException during indexing." );
             }
         }
     }
