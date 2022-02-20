@@ -35,5 +35,8 @@ public class test {
 //            result.insert(Integer.parseInt(arry[0]), 0.0, Integer.parseInt(arry[1]));
 //        }
 
+        int a = 123, b = 456;
+        String str = a + ":" + b;
+        System.out.println(str);
     }
 }

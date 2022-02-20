@@ -6,6 +6,22 @@ import java.io.*;
 
 public class PageRank {
 
+	static class Number implements Comparable<Number>{
+		Double data;
+		int index;
+
+		Number(Double d, int i){
+			this.data = d;
+			this.index = i;
+		}
+
+		@Override
+		public int compareTo(Number o) {
+			return this.data.compareTo(o.data);
+		}
+	}
+
+
     /**  
      *   Maximal number of documents. We're assuming here that we
      *   don't have more docs than we can keep in main memory.
@@ -218,12 +234,41 @@ public class PageRank {
 //		System.out.println("max  == " + max);
 //		System.out.println("item == " + item);
 //		System.out.println("doc  == " + docName[item]);
+		Number[] rankedResult = new Number[numberOfDocs];
+		for (int i = 0; i < numberOfDocs; i++) {
+			rankedResult[i] = new Number(x_[i], i);
+		}
 
-		System.out.println("sort:");
-		Arrays.sort(x_);
+		Arrays.sort(rankedResult, Collections.reverseOrder());
 
-		for (int i = numberOfDocs - 1; i >= numberOfDocs - 30; i--) System.out.println(x_[i]);
+		for (int i = 0; i < 30; i++) {
+			System.out.println(docName[rankedResult[i].index] + ": " + rankedResult[i].data);
+		}
 
+		writeToDoc("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/ir/myRankedResult.txt", rankedResult, numberOfDocs);
+
+//		System.out.println("sort:");
+//		Arrays.sort(x_);
+//
+//		for (int i = numberOfDocs - 1; i >= numberOfDocs - 30; i--) System.out.println(x_[i]);
+
+	}
+
+	public void writeToDoc(String fileName, Number[] result, int numberOfDocs) {
+		try {
+			BufferedWriter bufferedWriter = new BufferedWriter(new FileWriter(fileName));
+
+			for (int i = 0; i < numberOfDocs; i++) {
+				String str = docName[result[i].index] + ":" + result[i].data;
+				bufferedWriter.write(str);
+				bufferedWriter.newLine();
+			}
+
+			bufferedWriter.close();
+			System.out.println("finished write rankedPage data to file");
+		} catch ( IOException e ) {
+			e.printStackTrace();
+		}
 	}
 
 	double diff(double[] x1, double[] x2) {

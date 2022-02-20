@@ -7,8 +7,15 @@
 
 package ir;
 
+//import javafx.geometry.Pos;
+
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 
 /**
  *  Searches an index for results of a query.
@@ -20,11 +27,47 @@ public class Searcher {
 
     /** The k-gram index to be searched by this Searcher */
     KGramIndex kgIndex;
+
+    private final HashMap<Integer, Double> pageRankScore = new HashMap<>();
+
+    private final HashMap<String, Integer> fileNameToPRID = new HashMap<>();
     
     /** Constructor */
     public Searcher( Index index, KGramIndex kgIndex ) {
         this.index = index;
         this.kgIndex = kgIndex;
+        try {
+            mapPageRankIdToFileName("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/assignment2/pagerank/davisTitles.txt");
+            readPagedRank("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/ir/myRankedResult.txt");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void mapPageRankIdToFileName(String fileName) throws IOException {
+        BufferedReader in = new BufferedReader( new FileReader( fileName ));
+
+        String line;
+        while ((line = in.readLine()) != null) {
+            String[] splitLine = line.split(";");
+            int pageRankID = Integer.parseInt(splitLine[0]);
+            String docName = splitLine[1];
+
+            fileNameToPRID.put(docName, pageRankID);
+        }
+    }
+
+    public void readPagedRank(String fileName) throws IOException {
+        BufferedReader in = new BufferedReader( new FileReader( fileName ));
+
+        String line;
+        while ((line = in.readLine()) != null) {
+            String[] splitLine = line.split(":");
+            int docName = Integer.parseInt(splitLine[0]);
+            double score = Double.parseDouble(splitLine[1]);
+
+            pageRankScore.put(docName, score);
+        }
     }
 
     /**
@@ -91,33 +134,24 @@ public class Searcher {
                 return result;
             }
 
-            // 储存需要查询的词的PostingsList
-            ArrayList<PostingsList> queryWordPostingsList = new ArrayList<>();
-            // 计算查询的单词在每篇文章中的tf_idf值
-            for (int i = 0; i < query.size(); i++) {
-                String queryWord = query.queryterm.get(i).term;
-                PostingsList post = index.getPostings(queryWord);
-                calculateTF_IDF(post);
-                queryWordPostingsList.add(post);
-            }
+            result = RankedQuery(query, rankingType);
 
-            // 查询只有一个词的时候
-            if (query.size() == 1) {
-                // 如果只查一个词并且它不存在，那么返回空
-                if (queryWordPostingsList.get(0) == null) return result;
-                Collections.sort(queryWordPostingsList.get(0).getList());
-                return queryWordPostingsList.get(0);
-            }
+            if (rankingType == RankingType.COMBINATION) { doNormalization(result); }
 
-            PostingsList mergeResult = new PostingsList();
-            mergeResult = mergeRankedPostingsList(queryWordPostingsList.get(0), queryWordPostingsList.get(1));
 
-            for (int i = 2; i < query.size(); i++) {
-                mergeResult = mergeRankedPostingsList(mergeResult, queryWordPostingsList.get(i));
-            }
-            Collections.sort(mergeResult.getList());
-            result = mergeResult;
-            if (result.size() == 0) return null;
+//            if (rankingType == RankingType.TF_IDF) {
+//                result = RankedQuery(query, rankingType);
+//            }
+//
+//            if (rankingType == RankingType.PAGERANK) {
+//                result = RankedQuery(query, rankingType);
+//            }
+//
+//            if (rankingType == RankingType.COMBINATION) {
+//                result = RankedQuery(query, rankingType);
+//            }
+
+            if (result == null || result.size() == 0) return null;
             return result;
         }
 
@@ -125,9 +159,149 @@ public class Searcher {
         return result;
     }
 
+    public void doNormalization(PostingsList result) {
+        double sumTF_IDF = 0.0;
+        double sumPG_RNK = 0.0;
+
+        for (PostingsEntry entry : result.getList()) {
+            sumTF_IDF += entry.score;
+
+            int docID          = entry.docID;
+            String fileName    = index.docNames.get(docID);
+            String[] splitLine = fileName.split("davisWiki/");
+
+            fileName           = splitLine[1];
+            int pageRankID     = -1;
+
+            if (fileNameToPRID.get(fileName) != null) pageRankID = fileNameToPRID.get(fileName);
+
+            if (pageRankScore.get(pageRankID) != null) {
+                sumPG_RNK += pageRankScore.get(pageRankID);
+            }
+        }
+
+        double w1 = 0.5;
+        double w2 = 0.5;
+        for (PostingsEntry entry : result.getList()) {
+            int docID          = entry.docID;
+            String fileName    = index.docNames.get(docID);
+            String[] splitLine = fileName.split("davisWiki/");
+
+            fileName           = splitLine[1];
+            int pageRankID     = -1;
+
+            entry.score = w1 * entry.score / sumTF_IDF;
+
+            if (fileNameToPRID.get(fileName) != null) pageRankID = fileNameToPRID.get(fileName);
+
+            if (pageRankScore.get(pageRankID) != null) {
+                entry.score += w2 * pageRankScore.get(pageRankID) / sumPG_RNK;
+            }
+        }
+        System.out.println("sumTF_IDF == " + sumTF_IDF + ", sumPG_RNK == " + sumPG_RNK);
+
+        Collections.sort(result.getList());
+    }
 
 
-    public PostingsList mergeRankedPostingsList(PostingsList postingsList1, PostingsList postingsList2) {
+    public PostingsList RankedQuery(Query query, RankingType rankingType) {
+        ArrayList<PostingsList> queryWordPostingsList = new ArrayList<>();
+        // 计算查询的单词在每篇文章中的tf_idf值
+        for (int i = 0; i < query.size(); i++) {
+            String queryWord = query.queryterm.get(i).term;
+            PostingsList post = index.getPostings(queryWord);
+            if (rankingType == RankingType.TF_IDF) calculateTF_IDF(post);
+            if (rankingType == RankingType.PAGERANK) calculatePageRankScore(post);
+            if (rankingType == RankingType.COMBINATION) calculateCombinedScore(post);
+            queryWordPostingsList.add(post);
+        }
+
+        // 查询只有一个词的时候
+        if (query.size() == 1) {
+            // 如果只查一个词并且它不存在，那么返回空
+            if (queryWordPostingsList.get(0) == null) return null;
+            Collections.sort(queryWordPostingsList.get(0).getList());
+            return queryWordPostingsList.get(0);
+        }
+
+        PostingsList mergeResult = new PostingsList();
+        mergeResult = mergeRankedPostingsList(queryWordPostingsList.get(0), queryWordPostingsList.get(1), rankingType);
+
+        for (int i = 2; i < query.size(); i++) {
+            mergeResult = mergeRankedPostingsList(mergeResult, queryWordPostingsList.get(i), rankingType);
+        }
+        Collections.sort(mergeResult.getList());
+
+        return mergeResult;
+    }
+
+    public void calculateTF_IDF(PostingsList postingsList) {
+        if (postingsList == null) return;
+        int N  = this.index.docNames.size();
+        int df = postingsList.size();
+//        System.out.println("N == " + N + ", df == " + df + " == " + this.index.docLengths.size());
+
+        for (PostingsEntry entry : postingsList.getList()) {
+            int    tf        = entry.position.size();
+            double idf       = Math.log((double)N / (double)df);
+            double docLength = index.docLengths.get(entry.docID);
+
+            entry.score = (double)tf * idf / docLength;
+        }
+    }
+
+    public void calculatePageRankScore(PostingsList postingsList) {
+        if (postingsList == null) return;
+
+        for (PostingsEntry entry : postingsList.getList()) {
+            int docID          = entry.docID;
+            String fileName    = index.docNames.get(docID);
+            String[] splitLine = fileName.split("davisWiki/");
+
+            fileName           = splitLine[1];
+            int pageRankID     = -1;
+
+            if (fileNameToPRID.get(fileName) != null) pageRankID = fileNameToPRID.get(fileName);
+
+
+            if (pageRankScore.get(pageRankID) != null) {
+                entry.score = pageRankScore.get(pageRankID);
+            }
+            else entry.score = 0.0;
+        }
+    }
+
+    public void calculateCombinedScore(PostingsList postingsList) {
+        calculateTF_IDF(postingsList);
+//        if (postingsList == null) return;
+//
+//        double w1 = 1;
+//        double w2 = 100;
+//
+//
+//        for (PostingsEntry entry : postingsList.getList()) {
+//            int docID          = entry.docID;
+//            String fileName    = index.docNames.get(docID);
+//            String[] splitLine = fileName.split("davisWiki/");
+//
+//            fileName           = splitLine[1];
+//            int pageRankID     = -1;
+//
+//            if (fileNameToPRID.get(fileName) != null) pageRankID = fileNameToPRID.get(fileName);
+//
+//            if (pageRankScore.get(pageRankID) != null) {
+//                entry.score = w1 * entry.score / sumTF_IDF + w2 * pageRankScore.get(pageRankID) / sumPG_RNK;
+//            }
+//            else {
+//                entry.score = w1 * entry.score / index.docLengths.get(docID);
+//            }
+//
+//        }
+    }
+
+
+
+    public PostingsList mergeRankedPostingsList(PostingsList postingsList1, PostingsList postingsList2, RankingType rankingType) {
         PostingsList answer = new PostingsList();
 
         if (postingsList1 == null) postingsList1 = new PostingsList();
@@ -142,7 +316,8 @@ public class Searcher {
             if (postingsEntry1.docID == postingsEntry2.docID) {
                 double score = 0;
 
-                score = postingsEntry1.score + postingsEntry2.score;
+                if (rankingType != RankingType.PAGERANK) score = postingsEntry1.score + postingsEntry2.score;
+                else score = postingsEntry1.score;
                 answer.insert(postingsEntry1.docID, score, postingsEntry1.offset);
 
                 i++;
@@ -172,21 +347,6 @@ public class Searcher {
         }
 
         return answer;
-    }
-
-    public void calculateTF_IDF(PostingsList postingsList) {
-        if (postingsList == null) return;
-        int N  = this.index.docNames.size();
-        int df = postingsList.size();
-//        System.out.println("N == " + N + ", df == " + df + " == " + this.index.docLengths.size());
-
-        for (PostingsEntry entry : postingsList.getList()) {
-            int    tf        = entry.position.size();
-            double idf       = Math.log((double)N / (double)df);
-            double docLength = index.docLengths.get(entry.docID);
-
-            entry.score = (double)tf * idf / docLength;
-        }
     }
 
 
