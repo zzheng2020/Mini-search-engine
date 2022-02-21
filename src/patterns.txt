@@ -12,35 +12,46 @@
 
 // ADD YOUR PATTERNS HERE
 
-// E-mail
-([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z])
 
-// URL
-(https?:\/\/)[-A-Za-z0-9+&@#\/%?=~_|!:,.;]+[-A-Za-z0-9+&@#\%=~_|\/]
 
-// Twenty-four seven 24/7
+// http address
+https?:\/\/.*
+
+// Twenty-four seven
 \d+/\d+
 
-// word or number separated by -
-([a-zA-Z0-9]+|\d+)(\-([a-zA-Z0-9]+|\d+))+
+// ADD YOUR PATTERNS HERE
 
-// content between quotation marks ('hej')
-(?<=\')\w*(?=\')
+// aa..bb..cc@some.host.com
+\b[^@]+@[^@]+\b
 
-// abbreviation (I'd , don't)
-[a-zA-Z0-9]*(\')[a-zA-Z0-9]+
+e\.g\.
+p\.m\.
+a\.d\.
+b\.c\.
+'em
 
-// Time (11:11:11)
-[0-9]+((:|,)[0-9]+)+
-
-// telephone number (+111111)
-(\+)[0-9]+
-
-// $
+// money $100 $1,000
 \$\d+
 
-// number with dots
-[0-9]+(\.[0-9]+)+
+// 1.2.3
+\b\d+(\.\d+)+\b
 
-// words and doc name
-[a-zA-Z0-9_]+(\.)+\w+(\.)*
+// 1,222,000
+\d{1,3}(,\d{3})+
+
+// some-thing-like-this
+\w+(-\w+)+
+
+// phone +13011111111 or positive number
+\+\d+\b
+
+// time
+\d{1,2}:\d{1,2}:\d{1,2}
+
+// file image.png
+// \w+(\.\w+)+
+\w+\.(xlsx|ppt|doc)\b
+
+// 's 'll 't 'd
+\b\w+'(s|ll|d|t|re|m)\b

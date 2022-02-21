@@ -94,23 +94,22 @@ public class Engine {
                 long elapsedTime = System.currentTimeMillis() - startTime;
                 gui.displayInfoText( String.format( "Indexing done in %.1f seconds.", elapsedTime/1000.0 ));
                 index.cleanup();
-
-
-                calculateDocVector("euclidean.txt");
-
-                int cnt = 0;
-                for (Map.Entry<Integer, Double> entry : index.euclideanDocLengths.entrySet()) {
-                    cnt++;
-                    int docID = entry.getKey();
-                    if (cnt <= 30) {
-                        System.out.println("docName == " + index.docNames.get(docID) + ", Euclidean Length == " + entry.getValue());
-                    }
-                }
-
             }
         } else {
             gui.displayInfoText( "Index is loaded from disk" );
         }
+
+//        calculateDocVector("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/ir/euclidean.txt");
+//
+//        int cnt = 0;
+//        for (Map.Entry<Integer, Double> entry : index.euclideanDocLengths.entrySet()) {
+//            cnt++;
+//            int docID = entry.getKey();
+//            if (cnt <= 30) {
+//                System.out.println("docName == " + index.docNames.get(docID) + ", Euclidean Length == " + entry.getValue());
+//            }
+//        }
+
     }
 
 

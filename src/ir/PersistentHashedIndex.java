@@ -384,6 +384,7 @@ public class PersistentHashedIndex implements Index {
         for (String item : postingsList) {
             String[] docID = item.split(" ");
 //            System.out.println(docID[0]); // docID;
+            if (docID.length <= 1) break;
             String[] offset = docID[1].split(",");
             for (String i : offset) {
 //                System.out.println(i);

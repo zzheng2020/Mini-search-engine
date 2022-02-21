@@ -39,8 +39,22 @@ public class Searcher {
         try {
             mapPageRankIdToFileName("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/assignment2/pagerank/davisTitles.txt");
             readPagedRank("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/ir/myRankedResult.txt");
+            readEuclideanLengths("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/ir/euclidean.txt");
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    public void readEuclideanLengths(String fileName) throws IOException {
+        BufferedReader in = new BufferedReader( new FileReader( fileName ));
+
+        String line;
+        while ((line = in.readLine()) != null) {
+            String[] splitLine = line.split(":");
+            int docID = Integer.parseInt(splitLine[0]);
+            double euclideanLengths = Double.parseDouble(splitLine[1]);
+
+            index.euclideanDocLengths.put(docID, euclideanLengths);
         }
     }
 
@@ -134,7 +148,7 @@ public class Searcher {
                 return result;
             }
 
-            result = RankedQuery(query, rankingType);
+            result = RankedQuery(query, rankingType, normType);
 
             if (rankingType == RankingType.COMBINATION) { doNormalization(result); }
 
@@ -166,12 +180,12 @@ public class Searcher {
         for (PostingsEntry entry : result.getList()) {
             sumTF_IDF += entry.score;
 
-            int docID          = entry.docID;
-            String fileName    = index.docNames.get(docID);
+            int          docID = entry.docID;
+            String    fileName = index.docNames.get(docID);
             String[] splitLine = fileName.split("davisWiki/");
 
-            fileName           = splitLine[1];
-            int pageRankID     = -1;
+                      fileName = splitLine[1];
+            int     pageRankID = -1;
 
             if (fileNameToPRID.get(fileName) != null) pageRankID = fileNameToPRID.get(fileName);
 
@@ -183,12 +197,12 @@ public class Searcher {
         double w1 = 0.5;
         double w2 = 0.5;
         for (PostingsEntry entry : result.getList()) {
-            int docID          = entry.docID;
-            String fileName    = index.docNames.get(docID);
+            int          docID = entry.docID;
+            String    fileName = index.docNames.get(docID);
             String[] splitLine = fileName.split("davisWiki/");
 
-            fileName           = splitLine[1];
-            int pageRankID     = -1;
+                      fileName = splitLine[1];
+            int     pageRankID = -1;
 
             entry.score = w1 * entry.score / sumTF_IDF;
 
@@ -204,15 +218,15 @@ public class Searcher {
     }
 
 
-    public PostingsList RankedQuery(Query query, RankingType rankingType) {
+    public PostingsList RankedQuery(Query query, RankingType rankingType, NormalizationType normalizationType) {
         ArrayList<PostingsList> queryWordPostingsList = new ArrayList<>();
         // 计算查询的单词在每篇文章中的tf_idf值
         for (int i = 0; i < query.size(); i++) {
             String queryWord = query.queryterm.get(i).term;
             PostingsList post = index.getPostings(queryWord);
-            if (rankingType == RankingType.TF_IDF) calculateTF_IDF(post);
+            if (rankingType == RankingType.TF_IDF) calculateTF_IDF(post, normalizationType);
             if (rankingType == RankingType.PAGERANK) calculatePageRankScore(post);
-            if (rankingType == RankingType.COMBINATION) calculateCombinedScore(post);
+            if (rankingType == RankingType.COMBINATION) calculateCombinedScore(post, normalizationType);
             queryWordPostingsList.add(post);
         }
 
@@ -235,16 +249,18 @@ public class Searcher {
         return mergeResult;
     }
 
-    public void calculateTF_IDF(PostingsList postingsList) {
+    public void calculateTF_IDF(PostingsList postingsList, NormalizationType normalizationType) {
         if (postingsList == null) return;
         int N  = this.index.docNames.size();
         int df = postingsList.size();
 //        System.out.println("N == " + N + ", df == " + df + " == " + this.index.docLengths.size());
 
         for (PostingsEntry entry : postingsList.getList()) {
-            int    tf        = entry.position.size();
-            double idf       = Math.log((double)N / (double)df);
+            int           tf = entry.position.size();
+            double       idf = Math.log((double)N / (double)df);
             double docLength = index.docLengths.get(entry.docID);
+
+            if (normalizationType == NormalizationType.EUCLIDEAN) docLength = index.euclideanDocLengths.get(entry.docID);
 
             entry.score = (double)tf * idf / docLength;
         }
@@ -254,12 +270,12 @@ public class Searcher {
         if (postingsList == null) return;
 
         for (PostingsEntry entry : postingsList.getList()) {
-            int docID          = entry.docID;
-            String fileName    = index.docNames.get(docID);
+            int          docID = entry.docID;
+            String    fileName = index.docNames.get(docID);
             String[] splitLine = fileName.split("davisWiki/");
 
-            fileName           = splitLine[1];
-            int pageRankID     = -1;
+                      fileName = splitLine[1];
+            int     pageRankID = -1;
 
             if (fileNameToPRID.get(fileName) != null) pageRankID = fileNameToPRID.get(fileName);
 
@@ -271,8 +287,8 @@ public class Searcher {
         }
     }
 
-    public void calculateCombinedScore(PostingsList postingsList) {
-        calculateTF_IDF(postingsList);
+    public void calculateCombinedScore(PostingsList postingsList, NormalizationType normalizationType) {
+        calculateTF_IDF(postingsList, normalizationType);
 //        if (postingsList == null) return;
 //
 //        double w1 = 1;
@@ -363,13 +379,13 @@ public class Searcher {
 
             if (tokenPostingsEntry == null || intermediatePostingsEntry == null) return null;
 
-            int tokenDocID        = tokenPostingsEntry.docID;
+            int        tokenDocID = tokenPostingsEntry.docID;
             int intermediateDocID = intermediatePostingsEntry.docID;
 
             if (tokenDocID == intermediateDocID) {
-                int    docID    = tokenPostingsEntry.docID;
-                double score    = tokenPostingsEntry.score;
-                int    offset   = tokenPostingsEntry.offset;
+                int     docID = tokenPostingsEntry.docID;
+                double  score = tokenPostingsEntry.score;
+                int    offset = tokenPostingsEntry.offset;
                 mergeResult.insert(docID, score, offset);
                 pointerToken++;
                 pointerIntermediate++;

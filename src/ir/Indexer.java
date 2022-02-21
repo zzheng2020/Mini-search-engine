@@ -76,9 +76,25 @@ public class Indexer {
                         Reader reader = new InputStreamReader( new FileInputStream(f), StandardCharsets.UTF_8 );
                         Tokenizer tok = new Tokenizer( reader, true, false, true, patterns_file );
                         int offset = 0;
+
+                        // 这篇文章中有没有出现过这个词
+                        HashMap<String, Boolean> isAppear = new HashMap<>();
+
                         while ( tok.hasMoreTokens() ) {
                             String token = tok.nextToken();
                             insertIntoIndex( docID, token, offset++ );
+
+                            if (isAppear.get(token) == null) {
+                                if (index.wordInDocs.get(token) == null) {
+                                    index.wordInDocs.put(token, 1);
+                                }
+                                else {
+                                    int appearTimes = index.wordInDocs.get(token);
+                                    index.wordInDocs.put(token, appearTimes + 1);
+                                }
+                            }
+                            isAppear.put(token, true);
+
                         }
                         index.docNames.put( docID, f.getPath() );
                         index.docLengths.put( docID, offset );
@@ -103,6 +119,7 @@ public class Indexer {
         }
         else {
             int docID = generateDocID();
+            if (docID % 100 == 0) System.out.println("docId == " + docID);
             if( docID % 1000 == 0) System.out.println("Indexed " + docID + " files again");
 
             try {
@@ -128,8 +145,23 @@ public class Indexer {
                 double euclideanLengths = 0.0;
                 double squareSum = 0.0;
                 for (Map.Entry<String, Integer> entry : wordVector.entrySet()) {
-                    double appear = (double) entry.getValue();
-                    squareSum += appear * appear;
+//                    double appear = (double) entry.getValue();
+//                    squareSum += appear * appear;
+                    String               word = entry.getKey();
+                    int                    tf = entry.getValue();
+//                    PostingsList postingsList = index.getPostings(word);
+                    int                     N = index.docNames.size();
+//                    double                 df = postingsList.getList().size();
+                    double df = N;
+                    if (index.wordInDocs.get(word) == null) {
+                        df = N;
+                    }
+                    else df = index.wordInDocs.get(word);
+
+                    double               idf = Math.log( (double) N / df );
+
+                    squareSum += Math.pow((double) tf * idf, 2);
+
                 }
 
                 euclideanLengths = Math.sqrt(squareSum);

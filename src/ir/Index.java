@@ -24,6 +24,10 @@ public interface Index {
 
     public HashMap<Integer, Double> euclideanDocLengths = new HashMap<>();
 
+
+    // word在多少篇文章中出现过
+    public HashMap<String, Integer> wordInDocs = new HashMap<>();
+
     /** Inserts a token into the index. */
     public void insert( String token, int docID, int offset );
 
