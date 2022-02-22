@@ -1,6 +1,5 @@
 package ir;
 
-import java.lang.reflect.Array;
 import java.util.*;
 import java.io.*;
 
@@ -27,6 +26,8 @@ public class PageRank {
      *   don't have more docs than we can keep in main memory.
      */
     final static int MAX_NUMBER_OF_DOCS = 2000000;
+
+	int MAX_ITERATION = 1000000;
 
     /**
      *   Mapping from document names to document numbers.
@@ -55,6 +56,11 @@ public class PageRank {
 
 	ArrayList<Integer> nullLinks = new ArrayList<Integer>();
 
+	// mapping from docID to pagerank score
+	HashMap<Integer, Double> estimatedResult = new HashMap<>();
+
+	HashMap<Integer, String> idToTitle = new HashMap<>();
+
     /**
      *   The number of outlinks from each node.
      */
@@ -78,11 +84,119 @@ public class PageRank {
 
     public PageRank( String filename ) {
 		int noOfDocs = readDocs( filename );
-		iterate( noOfDocs, 1000 );
+//		iterate( noOfDocs, 1000 );
+
+		int         m = 1;
+		int         N = noOfDocs * m;
+		double  alpha = 0.85;
+		MAX_ITERATION = noOfDocs;
+
+//		Number[] resultOfMonteCarlo = MonteCarlo1(noOfDocs, N, alpha);
+		try {
+			mapPageRankIdToFileName("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/assignment2/pagerank/svwikiTitles.txt");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		for (int i = 1; i <= 5; i++) {
+			m = i;
+			N = noOfDocs * m;
+//			Number[] resultOfMonteCarlo = MonteCarlo2(noOfDocs, m, alpha);
+//			Number[] resultOfMonteCarlo = MonteCarlo4(noOfDocs, m, alpha);
+			Number[] resultOfMonteCarlo = MonteCarlo5(noOfDocs, N, alpha);
+//			double diff = squaredSumDiff(resultOfMonteCarlo, noOfDocs);
+//			System.out.println("m == " + m + ", N == " + N + ", diff == " + diff);
+//			System.out.println("---------------------------");
+		}
+
+//		Number[] resultOfMonteCarlo = MonteCarlo2(noOfDocs, m, alpha);
+
+//		Number[] resultOfMonteCarlo = MonteCarlo4(noOfDocs, m, alpha);
+
+//		Number[] resultOfMonteCarlo = MonteCarlo5(noOfDocs, N, alpha);
+
+//		double diff = squaredSumDiff(resultOfMonteCarlo, noOfDocs);
+//		System.out.println("N == " + N + ", diff == " + diff);
+
     }
 
 
     /* --------------------------------------------- */
+
+	public void mapPageRankIdToFileName(String fileName) throws IOException {
+		BufferedReader in = new BufferedReader( new FileReader( fileName ));
+
+		String line;
+		while ((line = in.readLine()) != null) {
+			String[] splitLine = line.split(";");
+			int         id = Integer.parseInt(splitLine[0]);
+			String docName = splitLine[1];
+
+			idToTitle.put(id, docName);
+		}
+	}
+
+	public Number[] readTrueDavisTop30(String fileName) {
+		Number[] baseLine = new Number[100];
+		try {
+			BufferedReader in = new BufferedReader( new FileReader( fileName ));
+
+			for (int i = 0; i < 30; i++) {
+				baseLine[i] = new Number(0.0, 0);
+			}
+			int cnt = 0;
+			String line;
+			while ((line = in.readLine()) != null) {
+				String[] splitLine = line.split(": ");
+				int          docID = Integer.parseInt(splitLine[0]);
+				double       score = Double.parseDouble(splitLine[1]);
+
+				baseLine[cnt].index = docID;
+				baseLine[cnt++].data = score;
+			}
+		} catch (NumberFormatException | IOException e) {
+			e.printStackTrace();
+		}
+		return baseLine;
+	}
+
+	public double squaredSumDiff(Number[] pi, int noOfDocs) {
+		estimatedResult.clear();
+		Number[] baseLine = new Number[100];
+
+		baseLine = readTrueDavisTop30("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/assignment2/pagerank/davis_top_30.txt");
+
+
+//		for (int i = 0; i < 30; i++) {
+//			System.out.println("rank " + i + ", docNum: " + docName[rankedResult[i].index] + ": " + rankedResult[i].data);
+//		}
+
+//		for (int i = 0; i < 30; i++) {
+//			System.out.println("docId == " + baseLine[i].index + ", score == " + baseLine[i].data);
+//		}
+//		System.out.println("-----------");
+
+//		for (int i = 0; i < 30; i++) {
+//			System.out.println("rank " + i + ", docNum: " + docName[rankedResult[i].index] + ": " + rankedResult[i].data);
+//		}
+		for (int i = 0; i < noOfDocs; i++) {
+			int         trueDocID = Integer.parseInt(docName[pi[i].index]);
+			double estimatedScore = pi[i].data;
+			estimatedResult.put(trueDocID, estimatedScore);
+		}
+
+
+		double diff = 0;
+		for (int i = 0; i < 30; i++) {
+			int             docID = baseLine[i].index;
+			double      trueScore = baseLine[i].data;
+			double estimatedScore = estimatedResult.get(docID);
+
+			diff += Math.pow(trueScore - estimatedScore, 2);
+		}
+
+		return diff;
+	}
 
 
     /**
@@ -282,6 +396,180 @@ public class PageRank {
 
     /* --------------------------------------------- */
 
+
+
+	public Number[] MonteCarlo1(int noOfDocs, int N, double alpha) {
+		double[] pi = new double[noOfDocs];
+		for (int i = 0; i < noOfDocs; i++) pi[i] = 0;
+
+		for (int i = 0; i < N; i++) {
+			int startID = (int) (Math.random() * noOfDocs);
+			int   endID = randomWalk(startID, noOfDocs, alpha);
+			pi[endID]++;
+		}
+
+		for (int i = 0; i < noOfDocs; i++) {
+			pi[i] = pi[i] / N;
+		}
+
+		Number[] rankedResult = new Number[noOfDocs];
+		for (int i = 0; i < noOfDocs; i++) {
+			rankedResult[i] = new Number(pi[i], i);
+		}
+
+		Arrays.sort(rankedResult, Collections.reverseOrder());
+
+		for (int i = 0; i < 30; i++) {
+			System.out.println("rank " + i + ", docNum: " + docName[rankedResult[i].index] + ": " + rankedResult[i].data);
+		}
+		return rankedResult;
+	}
+
+	public Number[] MonteCarlo2(int noOfDocs, int m, double alpha) {
+		double[] pi = new double[noOfDocs];
+		for (int i = 0; i < noOfDocs; i++) pi[i] = 0;
+
+		System.out.println("begin");
+		for (int cnt = 0; cnt < m; cnt++) {
+			for (int i = 0; i < noOfDocs; i++) {
+				int startID = i;
+				int   endID = randomWalk(startID, noOfDocs, alpha);
+				pi[endID]++;
+			}
+		}
+		System.out.println("end");
+
+		for (int i = 0; i < noOfDocs; i++) {
+			pi[i] = pi[i] / ((double) noOfDocs * m ) ;
+		}
+
+		Number[] rankedResult = new Number[noOfDocs];
+		for (int i = 0; i < noOfDocs; i++) {
+			rankedResult[i] = new Number(pi[i], i);
+		}
+
+		Arrays.sort(rankedResult, Collections.reverseOrder());
+
+		for (int i = 0; i < 30; i++) {
+			System.out.println("rank " + i + ", docNum: " + docName[rankedResult[i].index] + ": " + rankedResult[i].data);
+		}
+		return rankedResult;
+	}
+
+	public Number[] MonteCarlo4(int noOfDocs, int m, double alpha) {
+		double[] pi = new double[noOfDocs];
+		for (int i = 0; i < noOfDocs; i++) pi[i] = 0;
+
+		int totalWalks = 0;
+		for (int cnt = 0; cnt < m; cnt++) {
+			for (int i = 0; i < noOfDocs; i++) {
+				int startID = i;
+				totalWalks = randomWalkForMC45(startID, alpha, pi, totalWalks);
+			}
+		}
+
+		for (int i = 0; i < noOfDocs; i++) {
+			pi[i] = pi[i] / (double) totalWalks;
+		}
+
+		Number[] rankedResult = new Number[noOfDocs];
+		for (int i = 0; i < noOfDocs; i++) {
+			rankedResult[i] = new Number(pi[i], i);
+		}
+
+		Arrays.sort(rankedResult, Collections.reverseOrder());
+
+		for (int i = 0; i < 30; i++) {
+			System.out.println("rank " + i + ", docNum: " + docName[rankedResult[i].index] + ": " + rankedResult[i].data);
+		}
+
+		return rankedResult;
+	}
+
+	public Number[] MonteCarlo5(int noOfDocs, int N, double alpha) {
+		double[] pi = new double[noOfDocs];
+		for (int i = 0; i < noOfDocs; i++) pi[i] = 0;
+
+		int totalWalks = 0;
+		for (int i = 0; i < N; i++) {
+			int startID = (int) (Math.random() * noOfDocs);
+			totalWalks = randomWalkForMC45(startID, alpha, pi, totalWalks);
+		}
+		for (int i = 0; i < noOfDocs; i++) {
+			pi[i] = pi[i] / (double) totalWalks;
+		}
+
+		Number[] rankedResult = new Number[noOfDocs];
+		for (int i = 0; i < noOfDocs; i++) {
+			rankedResult[i] = new Number(pi[i], i);
+		}
+
+		Arrays.sort(rankedResult, Collections.reverseOrder());
+
+		for (int i = 0; i < 30; i++) {
+			System.out.println("rank " + i + ", docNum: " + docName[rankedResult[i].index] + ": " + rankedResult[i].data + "; " + idToTitle.get( Integer.parseInt(docName[rankedResult[i].index])));
+		}
+
+		return rankedResult;
+	}
+
+	public int randomWalk(int nowNode, int noOfDocs, double alpha) {
+		int cnt = 0;
+		int currentNode = nowNode;
+		while (cnt < MAX_ITERATION) {
+			cnt++;
+			// 所有和 nowNode 相连接的点
+			HashMap<Integer, Boolean> toNode = link.get(currentNode);
+
+			// nowNode 存在至少一条出边
+			if (toNode != null) {
+				// 将 toNode 转化为数组 outNode
+				ArrayList<Integer> outNode = new ArrayList<>();
+				for (Map.Entry<Integer, Boolean> entry : toNode.entrySet()) {
+					outNode.add(entry.getKey());
+				}
+				currentNode = outNode.get((new Random().nextInt(outNode.size())));
+			}
+			// nowNode 不存在出边，说明它是 sink Node
+			else {
+				currentNode = (int) (Math.random() * noOfDocs);
+			}
+			double currentAlpha = Math.random();
+			if (currentAlpha > alpha) return currentNode;
+		}
+		return currentNode;
+	}
+
+
+	public int randomWalkForMC45(int nowNode, double alpha, double[] pi, int totalWalks) {
+		int cnt = 0;
+
+		int curNode = nowNode;
+		while (cnt < MAX_ITERATION) {
+			cnt++;
+			totalWalks++;
+			pi[curNode]++;
+			// 所有和 nowNode 相连接的点
+			HashMap<Integer, Boolean> toNode = link.get(curNode);
+
+			// nowNode 存在至少一条出边
+			if (toNode != null) {
+				// 将 toNode 转化为数组 outNode
+				ArrayList<Integer> outNode = new ArrayList<>();
+				for (Map.Entry<Integer, Boolean> entry : toNode.entrySet()) {
+					outNode.add(entry.getKey());
+				}
+				curNode = outNode.get((new Random().nextInt(outNode.size())));
+			}
+			// nowNode 不存在出边，说明它是 sink Node
+			else {
+				return totalWalks;
+			}
+			double currentAlpha = Math.random();
+			if (currentAlpha > alpha) return totalWalks;
+		}
+		return totalWalks;
+	}
 
     public static void main( String[] args ) {
 		if ( args.length != 1 ) {

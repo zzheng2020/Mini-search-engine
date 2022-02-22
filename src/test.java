@@ -1,42 +1,39 @@
 import ir.PostingsList;
 
 import java.lang.reflect.Array;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 public class test {
     public static void main(String[] args) {
-//        StringBuilder str = new StringBuilder("");
-//        str.append("123 1,2,3,\n");
-//        str.append("456 4,5,6,\n");
-//        str.append("789 7,8,9,\n");
-//
-//
-//        String a = str.toString();
-//        System.out.println(Math.log(4/3));
+        String line = "1;2,3,4,";
 
-//        String[] postingsList = a.split("\n");
-//
-//        for (String item : postingsList) {
-//            String[] docID = item.split(" ");
-//            System.out.println(docID[0]); // docID;
-//            String[] offset = docID[1].split(",");
-//            for (String i : offset) {
-//                System.out.println(i);
-//            }
-//
-//        }
+        int index = line.indexOf( ";" );
 
-//        for (String s : postingsList) {
-//            String[] arry = s.split(" ");
-//            //System.out.println(arry[0]+","+arry[1]);
-//            result.insert(Integer.parseInt(arry[0]), 0.0, Integer.parseInt(arry[1]));
-//        }
+        StringTokenizer tok = new StringTokenizer( line.substring(index+1), "," );
 
-        int a = 123, b = 456;
-        String str = a + ":" + b;
-        System.out.println(str);
+        HashMap<Integer, HashMap<Integer, Boolean>> link = new HashMap<>();
+        int fromDoc = index;
+
+        while (tok.hasMoreTokens()) {
+//            System.out.println("123");
+            String otherTitle = tok.nextToken();
+            int otherDoc = Integer.parseInt(otherTitle);
+
+            if (link.get(fromDoc) == null) {
+                link.put(fromDoc, new HashMap<Integer,Boolean>());
+            }
+
+            if (link.get(fromDoc).get(otherDoc) == null) {
+                link.get(fromDoc).put( otherDoc, true );
+            }
+        }
+
+        for (Map.Entry<Integer, HashMap<Integer, Boolean>> entry : link.entrySet()) {
+            System.out.println(entry.getKey());
+            for (Map.Entry<Integer, Boolean> entry1 : entry.getValue().entrySet()) {
+                System.out.println(entry1);
+            }
+            System.out.println("---");
+        }
     }
 }
