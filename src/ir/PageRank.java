@@ -20,6 +20,9 @@ public class PageRank {
 		}
 	}
 
+	public PageRank() {
+
+	}
 
     /**  
      *   Maximal number of documents. We're assuming here that we
@@ -329,7 +332,7 @@ public class PageRank {
 			for (double v : x_) {
 				sum += v;
 			}
-			for (int i = 0; i<x_.length; i++) {
+			for (int i = 0; i < x_.length; i++) {
 				x_[i] = x_[i] / sum;
 			}
 			iteration++;

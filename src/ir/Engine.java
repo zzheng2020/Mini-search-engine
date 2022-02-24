@@ -21,8 +21,8 @@ import java.util.Map;
 public class Engine {
 
     /** The inverted index. */
-//    Index index = new HashedIndex();
-    Index index = new PersistentHashedIndex();
+    Index index = new HashedIndex();
+//    Index index = new PersistentHashedIndex();
 
     /** The indexer creating the search index. */
     Indexer indexer;
@@ -57,6 +57,8 @@ public class Engine {
     /** For persistent indexes, we might not need to do any indexing. */
     boolean is_indexing = true;
 
+    HITSRanker hitsRanker;
+
 
 //    /*
 //     * {
@@ -74,7 +76,11 @@ public class Engine {
     public Engine( String[] args ) {
         decodeArgs( args );
         indexer = new Indexer( index, kgIndex, patterns_file );
-        searcher = new Searcher( index, kgIndex );
+
+        hitsRanker = new HITSRanker("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/ir/linksDavis.txt", "/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/ir/davisTitles.txt", index);
+
+        searcher = new Searcher( index, kgIndex, hitsRanker);
+
         gui = new SearchGUI( this );
         gui.init();
         /* 
@@ -111,7 +117,6 @@ public class Engine {
 //        }
 
     }
-
 
     /* ----------------------------------------------- */
 

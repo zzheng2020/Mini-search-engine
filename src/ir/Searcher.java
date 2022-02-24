@@ -31,11 +31,14 @@ public class Searcher {
     private final HashMap<Integer, Double> pageRankScore = new HashMap<>();
 
     private final HashMap<String, Integer> fileNameToPRID = new HashMap<>();
+
+    HITSRanker hitsRanker;
     
     /** Constructor */
-    public Searcher( Index index, KGramIndex kgIndex ) {
+    public Searcher( Index index, KGramIndex kgIndex, HITSRanker hitsRanker) {
         this.index = index;
         this.kgIndex = kgIndex;
+        this.hitsRanker = hitsRanker;
         try {
             mapPageRankIdToFileName("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/assignment2/pagerank/davisTitles.txt");
             readPagedRank("/Users/zhangziheng/OneDrive/KTH/SEandIR_ZihengZhang/src/ir/myRankedResult.txt");
@@ -219,6 +222,7 @@ public class Searcher {
 
 
     public PostingsList RankedQuery(Query query, RankingType rankingType, NormalizationType normalizationType) {
+        System.out.println(rankingType);
         ArrayList<PostingsList> queryWordPostingsList = new ArrayList<>();
         // 计算查询的单词在每篇文章中的tf_idf值
         for (int i = 0; i < query.size(); i++) {
@@ -235,6 +239,11 @@ public class Searcher {
             // 如果只查一个词并且它不存在，那么返回空
             if (queryWordPostingsList.get(0) == null) return null;
             Collections.sort(queryWordPostingsList.get(0).getList());
+            if (rankingType == RankingType.HITS) {
+                PostingsList hitResult = new PostingsList();
+                hitResult = hitsRanker.rank(queryWordPostingsList.get(0));
+                return hitResult;
+            }
             return queryWordPostingsList.get(0);
         }
 
@@ -245,6 +254,11 @@ public class Searcher {
             mergeResult = mergeRankedPostingsList(mergeResult, queryWordPostingsList.get(i), rankingType);
         }
         Collections.sort(mergeResult.getList());
+
+        if (rankingType == RankingType.HITS) {
+            mergeResult = hitsRanker.rank(mergeResult);
+            System.out.println("searcher index == " + index.fileNameToDocId.size());
+        }
 
         return mergeResult;
     }

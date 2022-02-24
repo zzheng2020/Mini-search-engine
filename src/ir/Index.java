@@ -22,6 +22,8 @@ public interface Index {
     /** Mapping from document identifier to document length. */
     public HashMap<Integer,Integer> docLengths = new HashMap<Integer,Integer>();
 
+    public HashMap<String, Integer> fileNameToDocId = new HashMap<>();
+
     public HashMap<Integer, Double> euclideanDocLengths = new HashMap<>();
 
 
